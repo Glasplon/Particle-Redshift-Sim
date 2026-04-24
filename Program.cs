@@ -7,17 +7,42 @@ using SixLabors.ImageSharp.PixelFormats;
 
 class Program
 {
-    static int ExportWidth = 500;
-    static int ExportHeight = 150;
-    static string outputPath = "spectrumTest.png";
+    static Vector3 cameraPos = new Vector3(0,0,1.2f);
+    static int ExportWidth = 200;
+    static int ExportHeight = 200;
+    static string outputPath = "testing4.png";
     static Image<Rgba32> image = new Image<Rgba32>(ExportWidth, ExportHeight);
     static Particle[] particles;
+
+    static double rpm = 1_700_000_000;
+    static double radiansPerNanosecond = (rpm * (2.0 * Math.PI / 60.0) * 1e-9)*7;
+    //static double radiansPerNanosecond = 0.1781*5;
     static void Main(string[] args)
     {
-        particles = new Particle[1000];
+        /*particles = new Particle[1000];
         for (int i = 0; i < particles.Length; i++)
         {
             particles[i] = new Particle(new Vector3Double((int)(i/100)-5,((int)(i/10)%10)-5,i%10-5));
+        }
+        for (int y = 0; y < ExportHeight; y++)
+        {
+            for (int x = 0; x < ExportWidth; x++)
+            {
+                image[x, y] = new Rgba32(
+                    r: 128,
+                    g: 128,
+                    b: 128,
+                    a: 255
+                );
+            }
+        }*/
+        particles = new Particle[1000];
+        for (int i = 0; i < particles.Length; i+=10)
+        {
+            for (int y = 0; y < 10; y++)
+            {
+                particles[i+y] = new Particle(new Vector3Double((i/2000.0)-0.25,y/200.0,0));
+            }
         }
         for (int y = 0; y < ExportHeight; y++)
         {
@@ -37,22 +62,28 @@ class Program
 
         if(args.Length == 1)
         {
-            var (wl, spec) = BlackbodySpectrum.GetSpectrum(tempK: 1200.0);
+            var (wl, spec) = BlackbodySpectrum.GetSpectrum(tempK: 2000.0);
             double[] normSpec = BlackbodySpectrum.Normalise(spec);
 
-            Console.WriteLine($"Peak wavelength estimate: {BlackbodySpectrum.PeakWavelengthNm(1200):F0} nm");
+            for (int k = 0; k < wl.Length; k++)
+            {
+                //wl[k] *= 0.8620114440906095;
+            }
+
+            //Console.WriteLine($"Peak wavelength estimate: {BlackbodySpectrum.PeakWavelengthNm(1200):F0} nm");
             for (int i = 0; i < wl.Length; i++)
             {
                 if (i >= 0 && i < ExportWidth)
                 {
+                    var (r, g, b) = WavelengthToColor.WavelengthToSRGB(wl[i]);
                     for (int j = 0; j < normSpec[i]*100f; j++)
                     {
                         if (ExportHeight-j >= 0 && ExportHeight-j < ExportHeight)
                         {
                             image[(int)i, ExportHeight-j] = new Rgba32(
-                                r: (byte)(255), 
-                                g: (byte)(255), 
-                                b: 128,
+                                r: r, 
+                                g: g, 
+                                b: b,
                                 a: 255                  
                             );
                         }
@@ -66,18 +97,83 @@ class Program
                 
         } else
         {
+
+            // Color only (no distance)
+            //var (r, g, b) = SpectrumToRgb.SpectrumToSrgb(wl, norm);
+
+            // With distance falloff + brightness tuning
+
             for (int i = 0; i < particles.Length; i++)
             {
                 // Perspective (what to add)
-                float z = (float)particles[i].curPos.Z + cameraDistance; // push world in front of camera
-                float screenX = ExportWidth/2 + ((float)particles[i].curPos.X / z) * focalLength;
-                float screenY = ExportHeight/2 + ((float)particles[i].curPos.Y / z) * focalLength;
+                //float z = (float)particles[i].curPos.Z + cameraDistance; // push world in front of camera
+                //float screenX = ExportWidth/2 + ((float)particles[i].curPos.X / z) * focalLength;
+                //float screenY = ExportHeight/2 + ((float)particles[i].curPos.Y / z) * focalLength;
+
+
+                Vector3 camSpaceVertex = new Vector3((float)particles[i].curPos.X,(float)particles[i].curPos.Y,(float)particles[i].curPos.Z) - cameraPos;
+                float z = camSpaceVertex.Z; // this is your depth
+                float screenX = ExportWidth/2 + (camSpaceVertex.X / z) * focalLength;
+                float screenY = ExportHeight/2 + (camSpaceVertex.Y / z) * focalLength;
+
                 if (screenX >= 0 && screenX < ExportWidth && screenY >= 0 && screenY < ExportHeight)
                 {
+                    particles[i].curPos = Helper.rotateY(particles[i].prevPos, radiansPerNanosecond);
+                    
+
+                    var result = Helper.Calculate(particles[i].prevPos, particles[i].curPos, new Vector3Double(cameraPos.X,cameraPos.Y,cameraPos.Z));
+
+                    //double observedWavelength = emittedWavelength * result.K;
+                    //double observedIntensity  = baseIntensity * result.Intensity;
+
+                    //Console.WriteLine((particles[i].curPos.X+5) * 300);
+                    //var (wl, spec) = BlackbodySpectrum.GetSpectrum(tempK: ((particles[i].curPos.X+5)*100)+1000);
+                    var (wl, spec) = BlackbodySpectrum.GetSpectrum(tempK: 2000);
+                    double[] normSpec = BlackbodySpectrum.Normalise(spec);
+                    //double[] norm = BlackbodySpectrum.Normalise(spec);
+                    int highestIndex = -1000;
+                    double highestCurr = 0;
+                    for (int k = 0; k < wl.Length; k++)
+                    {
+                        wl[k] *= (result.K);
+                        spec[k] *= (result.Intensity / result.K);
+                        //if(spec[k] > highestCurr)
+                        //{
+                            //highestCurr = spec[k];
+                            //highestIndex = k;
+                        //}
+                    }
+
+                    //Console.WriteLine($"Spectrum range after shift: {wl[0]:F1} - {wl[^1]:F1} nm");
+
+                    float dx = (float)particles[i].curPos.X - cameraPos.X;
+                    float dy = (float)particles[i].curPos.Y - cameraPos.Y;
+                    float dz = (float)particles[i].curPos.Z - cameraPos.Z;
+                    float dist = MathF.Sqrt(dx*dx + dy*dy + dz*dz);
+                    //Vector3Double particlePos = Helper.rotateX(baseParticlePos, currentAngle);
+
+                    //var (r, g, b) = SpectrumToRgb.SpectrumToSrgb(wl, spec, distanceM: dist, brightnessScale: 1e-11);
+                    //var (r, g, b) = SpectrumToRGB.SpectrumToRGB(wl, spec, distanceM: dist, brightnessScale: 1e-11);
+                    double[] wavelengths = { 400, 450, 500, 550, 600, 650, 700 };
+                    double[] power       = { 0.1, 0.5, 1.0, 0.8, 0.3, 0.1, 0.0 };
+
+                    //var (r, g, b) = SpectrumToRGB.Convert(wavelengths,power);
+                    var (r, g, b) = SpectrumToRGB.Convert(wl,spec);
+
+                    byte rNew = (byte)r;
+                    byte bNew = (byte)b;
+                    byte gNew = (byte)g;
+                    //Console.WriteLine(rNew);
+                    //Console.WriteLine(gNew);
+                    //Console.WriteLine(bNew);
+
+                    //var (r, g, b) = WavelengthToColor.WavelengthToSRGB(wl[highestIndex]);
+                    //Console.WriteLine("info:");
+                    //Console.WriteLine(wl[highestIndex]);
                     image[(int)screenX, (int)screenY] = new Rgba32(
-                        r: (byte)(255), 
-                        g: (byte)(255), 
-                        b: 128,
+                        r: rNew, 
+                        g: gNew, 
+                        b: bNew,
                         a: 255                  
                     );
                 }
@@ -113,7 +209,7 @@ class Particle
     }
 }
 
-class Vector3Double
+public class Vector3Double
 {
     public double X;
     public double Y;
@@ -123,5 +219,11 @@ class Vector3Double
         X = x;
         Y = y;
         Z = z;
+    }
+
+    public double Length()
+    {
+        double length = Math.Sqrt(X * X + Y * Y + Z * Z);
+        return length;
     }
 }

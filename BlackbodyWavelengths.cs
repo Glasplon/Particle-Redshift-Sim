@@ -28,7 +28,7 @@ public static class BlackbodySpectrum
         double tempK,
         double wlStartNm  = 380.0,
         //double wlEndNm    = 780.0, //visible
-        double wlEndNm    = 2415*2, //well into infrared.
+        double wlEndNm    = 2415, //well into infrared.
         int    numSamples = 401,
         double emissivity = IRON_EMISSIVITY)
     {
