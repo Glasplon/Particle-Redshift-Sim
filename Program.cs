@@ -7,15 +7,17 @@ using SixLabors.ImageSharp.PixelFormats;
 
 class Program
 {
-    static Vector3 cameraPos = new Vector3(0,0,1.2f);
+    static Vector3 cameraPos = new Vector3(0,0.1f,1.2f);
     static int ExportWidth = 200;
     static int ExportHeight = 200;
-    static string outputPath = "testing4.png";
+    static string outputPath = "testing6.png";
     static Image<Rgba32> image = new Image<Rgba32>(ExportWidth, ExportHeight);
     static Particle[] particles;
 
     static double rpm = 1_700_000_000;
-    static double radiansPerNanosecond = (rpm * (2.0 * Math.PI / 60.0) * 1e-9)*7;
+    static double radiansPerNanosecond = (rpm * (2.0 * Math.PI / 60.0) * 1e-9)*4;
+    static double timeStep = 0; // time in ns
+    //static double radiansPerNanosecond = 0;
     //static double radiansPerNanosecond = 0.1781*5;
     static void Main(string[] args)
     {
@@ -36,14 +38,34 @@ class Program
                 );
             }
         }*/
-        particles = new Particle[1000];
-        for (int i = 0; i < particles.Length; i+=10)
+
+        Random rand = new Random();
+
+
+        particles = new Particle[20000];
+        /*for (int i = 0; i < particles.Length; i+=10)
         {
             for (int y = 0; y < 10; y++)
             {
                 particles[i+y] = new Particle(new Vector3Double((i/2000.0)-0.25,y/200.0,0));
             }
+        }*/
+        for (int i = 0; i < particles.Length; i++)
+        {
+                double angle = rand.NextDouble() * 2 * Math.PI;
+                double radius = Math.Sqrt(rand.NextDouble()) * (0.1/4f);
+
+                double xTMP = 0 + radius * Math.Cos(angle);
+                double yTMP = 0 + radius * Math.Sin(angle);
+                //Console.WriteLine(xTMP);
+                //Console.WriteLine(yTMP);
+                particles[i] = new Particle(new Vector3Double((i/(particles.Length*2f))-0.25,xTMP,yTMP));
+                //particles[i].prevPos = Helper.rotateY(particles[i].prevPos, 1.5f);
+                //particles[i].curPos = particles[i].prevPos;
         }
+        Console.WriteLine("particles Done");
+        //return;
+        
         for (int y = 0; y < ExportHeight; y++)
         {
             for (int x = 0; x < ExportWidth; x++)
@@ -59,15 +81,28 @@ class Program
 
         float focalLength = 400f;
         float cameraDistance = 40f;
-
-        if(args.Length == 1)
+        if(args.Length == 1 && args[0] != "w")
         {
-            var (wl, spec) = BlackbodySpectrum.GetSpectrum(tempK: 2000.0);
-            double[] normSpec = BlackbodySpectrum.Normalise(spec);
+            if (float.TryParse(args[0], out float resultTIMESTAMP)) {
+                //outputPath = $"./outputData/{(int)resultTIMESTAMP:D4}.png";
+                outputPath = $"./outputData/"+resultTIMESTAMP+".png";
+                //timeStep = resultTIMESTAMP;
+                timeStep=resultTIMESTAMP*0.1f;;
+                Console.WriteLine(timeStep);
+            } else {
+                Console.WriteLine("timestamp not recognized, quitting.");
+                return;
+            }
+        }
 
+        if(args.Length == 1 && args[0] == "w")
+        {
+            var (wl, spec) = BlackbodySpectrum.GetSpectrum(tempK: 4000.0);
+            double[] normSpec = BlackbodySpectrum.Normalise(spec);
+            //var (wl, normSpec) = BlackbodySpectrum.GetHydrogenSpectrumNormOld();
             for (int k = 0; k < wl.Length; k++)
             {
-                //wl[k] *= 0.8620114440906095;
+                //wl[k] *= 0.12160563989462705;
             }
 
             //Console.WriteLine($"Peak wavelength estimate: {BlackbodySpectrum.PeakWavelengthNm(1200):F0} nm");
@@ -75,15 +110,27 @@ class Program
             {
                 if (i >= 0 && i < ExportWidth)
                 {
-                    var (r, g, b) = WavelengthToColor.WavelengthToSRGB(wl[i]);
+                    double[] testWl = [wl[i],wl[i]+1];
+                    double[] testSpec = [1,0];
+                    //var (r, g, b) = WavelengthToColor.WavelengthToSRGB(wl[i]);
+                    double[] wavelengths = { 400, 450, 500, 550, 600, 650, 700 };
+                    double[] power       = { 0.1, 0.5, 1.0, 0.8, 0.3, 0.1, 0.0 };
+
+
+                    var (r, g, b) = SpectrumToRGB.Convert(testWl,testSpec);
+                    Console.WriteLine(r);
+                    Console.WriteLine(g);
+                    Console.WriteLine(b);
+                    Console.WriteLine(wl[i]);
+                    Console.WriteLine(normSpec[i]);
                     for (int j = 0; j < normSpec[i]*100f; j++)
                     {
                         if (ExportHeight-j >= 0 && ExportHeight-j < ExportHeight)
                         {
                             image[(int)i, ExportHeight-j] = new Rgba32(
-                                r: r, 
-                                g: g, 
-                                b: b,
+                                r: (byte)r, 
+                                g: (byte)g, 
+                                b: (byte)b,
                                 a: 255                  
                             );
                         }
@@ -91,8 +138,8 @@ class Program
                 }
             }
             for (int i = 0; i < wl.Length; i += 40) {  // print every 40th sample
-                Console.WriteLine($"  {wl[i],6:F1} nm  →  {normSpec[i]:F6}");
-                Console.WriteLine($"{wl[i]} nm  →  {spec[i]}");
+                //Console.WriteLine($"  {wl[i],6:F1} nm  →  {normSpec[i]:F6}");
+                //Console.WriteLine($"{wl[i]} nm  →  {spec[i]}");
             }
                 
         } else
@@ -110,6 +157,9 @@ class Program
                 //float screenX = ExportWidth/2 + ((float)particles[i].curPos.X / z) * focalLength;
                 //float screenY = ExportHeight/2 + ((float)particles[i].curPos.Y / z) * focalLength;
 
+                //particles[i].curPos = Helper.rotateY(particles[i].prevPos, radiansPerNanosecond);
+                particles[i].prevPos = Helper.rotateY(particles[i].startPos, timeStep*radiansPerNanosecond);
+                particles[i].curPos = Helper.rotateY(particles[i].prevPos, radiansPerNanosecond);
 
                 Vector3 camSpaceVertex = new Vector3((float)particles[i].curPos.X,(float)particles[i].curPos.Y,(float)particles[i].curPos.Z) - cameraPos;
                 float z = camSpaceVertex.Z; // this is your depth
@@ -118,7 +168,11 @@ class Program
 
                 if (screenX >= 0 && screenX < ExportWidth && screenY >= 0 && screenY < ExportHeight)
                 {
-                    particles[i].curPos = Helper.rotateY(particles[i].prevPos, radiansPerNanosecond);
+
+                    //Console.WriteLine("info:");
+                    //Console.WriteLine(particles[i].startPos.Z);
+                    //Console.WriteLine(particles[i].prevPos.Z);
+                    //Console.WriteLine(particles[i].curPos.Z);
                     
 
                     var result = Helper.Calculate(particles[i].prevPos, particles[i].curPos, new Vector3Double(cameraPos.X,cameraPos.Y,cameraPos.Z));
@@ -128,7 +182,23 @@ class Program
 
                     //Console.WriteLine((particles[i].curPos.X+5) * 300);
                     //var (wl, spec) = BlackbodySpectrum.GetSpectrum(tempK: ((particles[i].curPos.X+5)*100)+1000);
-                    var (wl, spec) = BlackbodySpectrum.GetSpectrum(tempK: 2000);
+
+                    /*
+                    Vector3Double delta = new Vector3Double(
+                        particles[i].curPos.X - particles[i].prevPos.X,
+                        particles[i].curPos.Y - particles[i].prevPos.Y,
+                        particles[i].curPos.Z - particles[i].prevPos.Z);
+
+                    double speedMperNs = Math.Sqrt(delta.X*delta.X + delta.Y*delta.Y + delta.Z*delta.Z);
+                    double speedMperS  = speedMperNs * 1e9;
+                    double speedFracC  = speedMperNs / 0.299792458;
+
+                    Console.WriteLine($"Speed: {speedMperS:F0} m/s  |  {speedMperNs:F6} m/ns  |  {speedFracC:F4}c");
+                    */
+
+
+                    var (wl, spec) = BlackbodySpectrum.GetSpectrum(tempK: 4000);
+                    //var (wl, spec) = BlackbodySpectrum.GetHydrogenSpectrum();
                     double[] normSpec = BlackbodySpectrum.Normalise(spec);
                     //double[] norm = BlackbodySpectrum.Normalise(spec);
                     int highestIndex = -1000;
@@ -153,16 +223,14 @@ class Program
                     //Vector3Double particlePos = Helper.rotateX(baseParticlePos, currentAngle);
 
                     //var (r, g, b) = SpectrumToRgb.SpectrumToSrgb(wl, spec, distanceM: dist, brightnessScale: 1e-11);
-                    //var (r, g, b) = SpectrumToRGB.SpectrumToRGB(wl, spec, distanceM: dist, brightnessScale: 1e-11);
                     double[] wavelengths = { 400, 450, 500, 550, 600, 650, 700 };
                     double[] power       = { 0.1, 0.5, 1.0, 0.8, 0.3, 0.1, 0.0 };
 
                     //var (r, g, b) = SpectrumToRGB.Convert(wavelengths,power);
-                    var (r, g, b) = SpectrumToRGB.Convert(wl,spec);
+                    //var (r, g, b) = SpectrumToRGB.Convert(wl,spec);
+                    //var (r, g, b) = SpectrumToRgbOLD.SpectrumToSrgb(wl, spec, distanceM: dist, brightnessScale: 1e-9);
+                    var (r, g, b) = SpectrumToRgbOLD.SpectrumToSrgb(wl, spec, distanceM: dist, brightnessScale: 2e-14);
 
-                    byte rNew = (byte)r;
-                    byte bNew = (byte)b;
-                    byte gNew = (byte)g;
                     //Console.WriteLine(rNew);
                     //Console.WriteLine(gNew);
                     //Console.WriteLine(bNew);
@@ -171,9 +239,9 @@ class Program
                     //Console.WriteLine("info:");
                     //Console.WriteLine(wl[highestIndex]);
                     image[(int)screenX, (int)screenY] = new Rgba32(
-                        r: rNew, 
-                        g: gNew, 
-                        b: bNew,
+                        r: (byte)r, 
+                        g: (byte)g, 
+                        b: (byte)b,
                         a: 255                  
                     );
                 }
@@ -200,12 +268,14 @@ class Program
 
 class Particle
 {
+    public Vector3Double startPos;
     public Vector3Double prevPos;
     public Vector3Double curPos;
     public Particle(Vector3Double pos)
     {
         curPos = pos;
         prevPos = pos;
+        startPos = pos;
     }
 }
 

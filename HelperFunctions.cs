@@ -66,8 +66,8 @@ public static class Helper
         // --- Relativistic beaming: intensity scales as K^4 ---
         double intensity = Math.Pow(K, 4.0);
 
-        Console.WriteLine("new");
-        Console.WriteLine(K);
+        //Console.WriteLine("new");
+        //Console.WriteLine(K);
         //Console.WriteLine(particlePos.X+", "+particlePos.Y+", "+particlePos.Z);
         //Console.WriteLine(particlePosPlusOne.X+", "+particlePosPlusOne.Y+", "+particlePosPlusOne.Z);
         //Console.WriteLine(cameraPos.X);

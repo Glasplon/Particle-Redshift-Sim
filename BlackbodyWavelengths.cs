@@ -76,6 +76,92 @@ public static class BlackbodySpectrum
         return result;
     }
 
+    public static (double[] wavelengthsNm, double[] radiance) GetHydrogenSpectrum(
+        double electronsInUpperLevel = 1e20,   // tune this for your scene brightness
+        double wlStartNm = 380.0,
+        double wlEndNm   = 1000.0,
+        int    numSamples = 401)
+    {
+        // (wavelength nm, Einstein A coefficient s^-1)
+        var lines = new (double wl, double A)[]
+        {
+            (656.28, 4.410e7),
+            (486.13, 1.672e7),
+            (434.05, 6.908e6),
+            (410.17, 2.699e6),
+            (397.01, 1.388e6),
+        };
+
+        double[] wavelengthsNm = new double[numSamples];
+        double[] radiance      = new double[numSamples];
+
+        double step = (wlEndNm - wlStartNm) / (numSamples - 1);
+        for (int i = 0; i < numSamples; i++)
+            wavelengthsNm[i] = wlStartNm + i * step;
+
+        double sigma = 1.0; // nm, spike width
+
+        foreach (var (wl, A) in lines)
+        {
+            // Photon energy in joules
+            double wlM      = wl * 1e-9;
+            double ePhoton  = (H * C) / wlM;
+
+            // Power of this line in watts
+            double power = A * electronsInUpperLevel * ePhoton;
+
+            // Distribute into Gaussian spike
+            // power is in W, we spread it over the spike so it integrates to `power`
+            double norm = power / (sigma * Math.Sqrt(2.0 * Math.PI));
+
+            for (int i = 0; i < numSamples; i++)
+            {
+                double diff = wavelengthsNm[i] - wl;
+                radiance[i] += norm * Math.Exp(-(diff * diff) / (2.0 * sigma * sigma));
+            }
+        }
+
+        return (wavelengthsNm, radiance);
+    }
+
+    public static (double[] wavelengthsNm, double[] radiance) GetHydrogenSpectrumNormOld(
+        double wlStartNm = 380.0,
+        double wlEndNm   = 1000.0,
+        int    numSamples = 401)
+    {
+        // Balmer series lines: (wavelength nm, relative intensity)
+        var lines = new (double wl, double strength)[]
+        {
+            (656.28, 1.000),   // H-alpha
+            (486.13, 0.360),   // H-beta
+            (434.05, 0.170),   // H-gamma
+            (410.17, 0.090),   // H-delta
+            (397.01, 0.040),   // H-epsilon
+        };
+
+        double[] wavelengthsNm = new double[numSamples];
+        double[] radiance      = new double[numSamples];
+
+        double step = (wlEndNm - wlStartNm) / (numSamples - 1);
+
+        for (int i = 0; i < numSamples; i++)
+            wavelengthsNm[i] = wlStartNm + i * step;
+
+        // Each line is a Gaussian spike, width (sigma) ~1nm
+        // Real spectral lines have width, this approximates it
+        double sigma = 1.0;
+        foreach (var (wl, strength) in lines)
+        {
+            for (int i = 0; i < numSamples; i++)
+            {
+                double diff = wavelengthsNm[i] - wl;
+                radiance[i] += strength * Math.Exp(-(diff * diff) / (2.0 * sigma * sigma));
+            }
+        }
+
+        return (wavelengthsNm, radiance);
+    }
+
     /// <summary>
     /// Wien's displacement law: quick estimate of peak emission wavelength.
     /// Good sanity check — your spectrum array peak should be near this.
