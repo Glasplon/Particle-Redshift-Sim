@@ -83,14 +83,22 @@ class Program
 
         float focalLength = 400f;
         float cameraDistance = 40f;
-        if(args.Length == 1 && args[0] != "w")
+        if(args.Length >= 1 && args[0] != "w")
         {
             if (float.TryParse(args[0], out float resultTIMESTAMP)) {
                 //outputPath = $"./outputData/{(int)resultTIMESTAMP:D4}.png";
                 outputPath = $"./outputData/"+resultTIMESTAMP+".png";
                 //timeStep = resultTIMESTAMP;
-                timeStep=resultTIMESTAMP*0.1f;;
-                Console.WriteLine(timeStep);
+                if(args.Length == 2 && args[1] == "s")
+                {
+                    radiansPerNanosecond/=10;
+                    timeStep=resultTIMESTAMP*1;
+                    Console.WriteLine(timeStep);
+                } else
+                {
+                    timeStep=resultTIMESTAMP*0.1f;;
+                    Console.WriteLine(timeStep);
+                }
             } else {
                 Console.WriteLine("timestamp not recognized, quitting.");
                 return;
@@ -163,6 +171,18 @@ class Program
                 particles[i].prevPos = Helper.rotateY(particles[i].startPos, timeStep*radiansPerNanosecond);
                 particles[i].curPos = Helper.rotateY(particles[i].prevPos, radiansPerNanosecond);
 
+                float dxBeforeSOL = (float)particles[i].curPos.X - cameraPos.X;
+                float dyBeforeSOL = (float)particles[i].curPos.Y - cameraPos.Y;
+                float dzBeforeSOL = (float)particles[i].curPos.Z - cameraPos.Z;
+                float distBeforeSOL = MathF.Sqrt(dxBeforeSOL*dxBeforeSOL + dyBeforeSOL*dyBeforeSOL + dzBeforeSOL*dzBeforeSOL);
+
+                double lightTravelNs = distBeforeSOL / 0.299792458; // how many nanoseconds light takes to reach camera
+
+                double emitTimeStep = timeStep - lightTravelNs; // what "time" the particle was at when it emitted
+
+                particles[i].prevPos = Helper.rotateY(particles[i].startPos, emitTimeStep * radiansPerNanosecond);
+                particles[i].curPos  = Helper.rotateY(particles[i].prevPos, radiansPerNanosecond);
+
                 Vector3 camSpaceVertex = new Vector3((float)particles[i].curPos.X,(float)particles[i].curPos.Y,(float)particles[i].curPos.Z) - cameraPos;
                 float z = camSpaceVertex.Z; // this is your depth
                 float screenX = ExportWidth/2 + (camSpaceVertex.X / z) * focalLength;
@@ -185,7 +205,7 @@ class Program
                     //Console.WriteLine((particles[i].curPos.X+5) * 300);
                     //var (wl, spec) = BlackbodySpectrum.GetSpectrum(tempK: ((particles[i].curPos.X+5)*100)+1000);
 
-                    /*
+                    
                     Vector3Double delta = new Vector3Double(
                         particles[i].curPos.X - particles[i].prevPos.X,
                         particles[i].curPos.Y - particles[i].prevPos.Y,
@@ -195,8 +215,8 @@ class Program
                     double speedMperS  = speedMperNs * 1e9;
                     double speedFracC  = speedMperNs / 0.299792458;
 
-                    Console.WriteLine($"Speed: {speedMperS:F0} m/s  |  {speedMperNs:F6} m/ns  |  {speedFracC:F4}c");
-                    */
+                    //Console.WriteLine($"Speed: {speedMperS:F0} m/s  |  {speedMperNs:F6} m/ns  |  {speedFracC:F4}c");
+                    
 
 
                     //var (wl, spec) = BlackbodySpectrum.GetSpectrum(tempK: 4000);
@@ -231,8 +251,11 @@ class Program
 
                     //var (r, g, b) = SpectrumToRGB.Convert(wavelengths,power);
                     //var (r, g, b) = SpectrumToRGB.Convert(wl,spec);
-                    var (r, g, b) = SpectrumToRgbOLD.SpectrumToSrgb(wl, spec, distanceM: dist, brightnessScale: 1e-9);
+                    //var (r, g, b) = SpectrumToRgbOLD.SpectrumToSrgb(wl, spec, distanceM: dist, brightnessScale: 1e-9);
                     //var (r, g, b) = SpectrumToRgbOLD.SpectrumToSrgb(wl, spec, distanceM: dist, brightnessScale: 2e-14);
+
+                    var (r, g, b) = SpectrumToRgbOLD.SpectrumToSrgb(wl, spec, distanceM: dist, brightnessScale: 4e-11);
+                    //var (r, g, b) = SpectrumToRgbOLD.SpectrumToSrgb(wl, spec, distanceM: dist, brightnessScale: 1e-16);
 
                     //Console.WriteLine(rNew);
                     //Console.WriteLine(gNew);
@@ -245,7 +268,7 @@ class Program
                         lookAt.Z - cameraPos.Z));
 
                     float depth = dx * forward.X + dy * forward.Y + dz * forward.Z;
-                    Console.WriteLine(depth);
+                    //Console.WriteLine(depth);
                     if (zDepth[(int)screenX, (int)screenY] > depth)
                     {
                         zDepth[(int)screenX, (int)screenY] = depth;
@@ -253,13 +276,14 @@ class Program
                     //var (r, g, b) = WavelengthToColor.WavelengthToSRGB(wl[highestIndex]);
                     //Console.WriteLine("info:");
                     //Console.WriteLine(wl[highestIndex]);
-                        image[(int)screenX, (int)screenY] = new Rgba32(
+                        /*image[(int)screenX, (int)screenY] = new Rgba32(
                             r: (byte)r, 
                             g: (byte)g, 
                             b: (byte)b,
                             a: 255                  
-                        );
+                        );*/
                     }
+                    Helper.DrawPixelAA(image,screenX,screenY,r,g,b,1f); // no need for z depth if addetive
                 }
             }
         }

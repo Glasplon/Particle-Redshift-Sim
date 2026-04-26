@@ -1,4 +1,7 @@
 namespace aaa;
+
+using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.PixelFormats;
 public static class Helper
 {
     public const double C = 0.299792458; //speed of light in meter s per nanosecond.
@@ -79,6 +82,40 @@ public static class Helper
             K = K,
             Intensity = intensity
         };
+    }
+
+    static public void DrawPixelAA(Image<Rgba32> image, float px, float py, float r, float g, float b, float alpha = 1f)
+    {
+        int x0 = (int)MathF.Floor(px);
+        int y0 = (int)MathF.Floor(py);
+        int x1 = x0 + 1;
+        int y1 = y0 + 1;
+
+        float fx = px - x0; // fractional part, 0..1
+        float fy = py - y0;
+
+        // weights for each of the 4 surrounding pixels
+        float w00 = (1 - fx) * (1 - fy);
+        float w10 = fx       * (1 - fy);
+        float w01 = (1 - fx) * fy;
+        float w11 = fx       * fy;
+
+        BlendPixel(image, x0, y0, r, g, b, alpha * w00);
+        BlendPixel(image, x1, y0, r, g, b, alpha * w10);
+        BlendPixel(image, x0, y1, r, g, b, alpha * w01);
+        BlendPixel(image, x1, y1, r, g, b, alpha * w11);
+    }
+    static void BlendPixel(Image<Rgba32> image, int x, int y, float r, float g, float b, float w)
+    {
+        if (x < 0 || y < 0 || x >= image.Width || y >= image.Height) return;
+
+        Rgba32 existing = image[x, y];
+        image[x, y] = new Rgba32(
+            r: (byte)Math.Clamp(existing.R + r * w, 0, 255),
+            g: (byte)Math.Clamp(existing.G + g * w, 0, 255),
+            b: (byte)Math.Clamp(existing.B + b * w, 0, 255),
+            a: 255
+        );
     }
 }
 
