@@ -12,6 +12,7 @@ class Program
     static int ExportHeight = 200;
     static string outputPath = "testing6.png";
     static Image<Rgba32> image = new Image<Rgba32>(ExportWidth, ExportHeight);
+    static double[,] zDepth = new double[ExportWidth,ExportHeight];
     static Particle[] particles;
 
     static double rpm = 1_700_000_000;
@@ -76,6 +77,7 @@ class Program
                     b: 0,
                     a: 255
                 );
+                zDepth[x,y] = 1000000; // z depth far distance
             }
         }
 
@@ -197,8 +199,8 @@ class Program
                     */
 
 
-                    var (wl, spec) = BlackbodySpectrum.GetSpectrum(tempK: 4000);
-                    //var (wl, spec) = BlackbodySpectrum.GetHydrogenSpectrum();
+                    //var (wl, spec) = BlackbodySpectrum.GetSpectrum(tempK: 4000);
+                    var (wl, spec) = BlackbodySpectrum.GetHydrogenSpectrum();
                     double[] normSpec = BlackbodySpectrum.Normalise(spec);
                     //double[] norm = BlackbodySpectrum.Normalise(spec);
                     int highestIndex = -1000;
@@ -220,6 +222,7 @@ class Program
                     float dy = (float)particles[i].curPos.Y - cameraPos.Y;
                     float dz = (float)particles[i].curPos.Z - cameraPos.Z;
                     float dist = MathF.Sqrt(dx*dx + dy*dy + dz*dz);
+
                     //Vector3Double particlePos = Helper.rotateX(baseParticlePos, currentAngle);
 
                     //var (r, g, b) = SpectrumToRgb.SpectrumToSrgb(wl, spec, distanceM: dist, brightnessScale: 1e-11);
@@ -228,22 +231,35 @@ class Program
 
                     //var (r, g, b) = SpectrumToRGB.Convert(wavelengths,power);
                     //var (r, g, b) = SpectrumToRGB.Convert(wl,spec);
-                    //var (r, g, b) = SpectrumToRgbOLD.SpectrumToSrgb(wl, spec, distanceM: dist, brightnessScale: 1e-9);
-                    var (r, g, b) = SpectrumToRgbOLD.SpectrumToSrgb(wl, spec, distanceM: dist, brightnessScale: 2e-14);
+                    var (r, g, b) = SpectrumToRgbOLD.SpectrumToSrgb(wl, spec, distanceM: dist, brightnessScale: 1e-9);
+                    //var (r, g, b) = SpectrumToRgbOLD.SpectrumToSrgb(wl, spec, distanceM: dist, brightnessScale: 2e-14);
 
                     //Console.WriteLine(rNew);
                     //Console.WriteLine(gNew);
-                    //Console.WriteLine(bNew);
+                    //Console.WriteLine(bNew);zDepth
+
+                    Vector3 lookAt = new Vector3(0,0.1f,0);
+                    Vector3 forward = Vector3.Normalize(new Vector3(
+                        lookAt.X - cameraPos.X,
+                        lookAt.Y - cameraPos.Y,
+                        lookAt.Z - cameraPos.Z));
+
+                    float depth = dx * forward.X + dy * forward.Y + dz * forward.Z;
+                    Console.WriteLine(depth);
+                    if (zDepth[(int)screenX, (int)screenY] > depth)
+                    {
+                        zDepth[(int)screenX, (int)screenY] = depth;
 
                     //var (r, g, b) = WavelengthToColor.WavelengthToSRGB(wl[highestIndex]);
                     //Console.WriteLine("info:");
                     //Console.WriteLine(wl[highestIndex]);
-                    image[(int)screenX, (int)screenY] = new Rgba32(
-                        r: (byte)r, 
-                        g: (byte)g, 
-                        b: (byte)b,
-                        a: 255                  
-                    );
+                        image[(int)screenX, (int)screenY] = new Rgba32(
+                            r: (byte)r, 
+                            g: (byte)g, 
+                            b: (byte)b,
+                            a: 255                  
+                        );
+                    }
                 }
             }
         }
