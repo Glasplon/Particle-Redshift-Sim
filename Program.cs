@@ -43,7 +43,7 @@ class Program
         Random rand = new Random();
 
 
-        particles = new Particle[20000];
+        particles = new Particle[50000];
         /*for (int i = 0; i < particles.Length; i+=10)
         {
             for (int y = 0; y < 10; y++)
@@ -219,8 +219,8 @@ class Program
                     
 
 
-                    //var (wl, spec) = BlackbodySpectrum.GetSpectrum(tempK: 4000);
-                    var (wl, spec) = BlackbodySpectrum.GetHydrogenSpectrum();
+                    var (wl, spec) = BlackbodySpectrum.GetSpectrum(tempK: 3000);
+                    //var (wl, spec) = BlackbodySpectrum.GetHydrogenSpectrum();
                     double[] normSpec = BlackbodySpectrum.Normalise(spec);
                     //double[] norm = BlackbodySpectrum.Normalise(spec);
                     int highestIndex = -1000;
@@ -254,8 +254,9 @@ class Program
                     //var (r, g, b) = SpectrumToRgbOLD.SpectrumToSrgb(wl, spec, distanceM: dist, brightnessScale: 1e-9);
                     //var (r, g, b) = SpectrumToRgbOLD.SpectrumToSrgb(wl, spec, distanceM: dist, brightnessScale: 2e-14);
 
-                    var (r, g, b) = SpectrumToRgbOLD.SpectrumToSrgb(wl, spec, distanceM: dist, brightnessScale: 4e-11);
+                    //var (r, g, b) = SpectrumToRgbOLD.SpectrumToSrgb(wl, spec, distanceM: dist, brightnessScale: 4e-11);
                     //var (r, g, b) = SpectrumToRgbOLD.SpectrumToSrgb(wl, spec, distanceM: dist, brightnessScale: 1e-16);
+                    var (r, g, b) = SpectrumToRgbOLD.SpectrumToSrgb(wl, spec, distanceM: dist, brightnessScale: 2e-13);
 
                     //Console.WriteLine(rNew);
                     //Console.WriteLine(gNew);
@@ -273,17 +274,14 @@ class Program
                     {
                         zDepth[(int)screenX, (int)screenY] = depth;
 
-                    //var (r, g, b) = WavelengthToColor.WavelengthToSRGB(wl[highestIndex]);
-                    //Console.WriteLine("info:");
-                    //Console.WriteLine(wl[highestIndex]);
-                        /*image[(int)screenX, (int)screenY] = new Rgba32(
+                        image[(int)screenX, (int)screenY] = new Rgba32(
                             r: (byte)r, 
                             g: (byte)g, 
                             b: (byte)b,
                             a: 255                  
-                        );*/
+                        );
                     }
-                    Helper.DrawPixelAA(image,screenX,screenY,r,g,b,1f); // no need for z depth if addetive
+                    //Helper.DrawPixelAA(image,screenX,screenY,r,g,b,1f); // no need for z depth if addetive
                 }
             }
         }

@@ -15,7 +15,7 @@ echo "Generating frames..."
 for ((i=1; i<=FRAME_COUNT; i++))
 do
     echo "Frame $i"
-    dotnet run "$i" s
+    dotnet run "$i"
 done
 
 echo "Encoding video..."

@@ -3,17 +3,9 @@ using System.Linq;
 
 public static class SpectrumToRGB
 {
-    // CIE 1931 2° Color Matching Functions
-    // Download the 1nm interval table from: https://cvrl.ucl.ac.uk/
-    // Go to: "CIE 1931 2-deg, XYZ CMFs" → Download as CSV
-    // Paste the data below as rows of { wavelength, x_bar, y_bar, z_bar }
-    // It should cover 360–780nm at 1nm spacing (421 rows)
     private static readonly double[,] CmfData =
     {
-        // { 360, 0.000130, 0.000004, 0.000606 },
-        // { 361, 0.000146, 0.000004, 0.000681 },
-        // ... paste all 421 rows here ...
-        // { 780, 0.000002, 0.000001, 0.000000 },
+        //https://github.com/hughsie/colord/blob/main/data/cmf/CIE1931-2deg-XYZ.csv?plain=1
 
         {360,0.000129900000,0.000003917000,0.000606100000},
         {365,0.000232100000,0.000006965000,0.001086000000},
